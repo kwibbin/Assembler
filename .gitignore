@@ -2,6 +2,9 @@
 # Prerequisites
 *.d
 
+# kwibbin section
+.idea
+
 # Object files
 *.o
 *.ko

@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <math.h>
 #include <errno.h>
+#include <stdint.h>
 
 #define BUFFER_SIZE 100
 #define LABEL_ARR_SIZE 100
@@ -25,11 +26,11 @@
 
 typedef struct LABEL_STRUCT{
     char* labelName;
-    u_int32_t address;
+    uint32_t address;
 } LABEL;
 typedef struct INSTRUCTION_STRUCT{
-    u_int8_t opcode;
-    u_int8_t func;
+    uint8_t opcode;
+    uint8_t func;
 } INSTRUCTION_ID;
 
 int current = -1;
@@ -80,7 +81,7 @@ int resolveImmediate(char im[]){
     return isNegative && !flag ? value * -1 : value;
 }
 
-u_int32_t resolveLabel(char label[]){
+uint32_t resolveLabel(char label[]){
     for(int i = 0; i < labelIndex; i++){
         if(strcmp(labels[i].labelName, label) == 0){
             return labels[i].address;
@@ -92,34 +93,34 @@ u_int32_t resolveLabel(char label[]){
     return -1;
 }
 
-void printBinary(u_int32_t number, int bits ){
+void printBinary(uint32_t number, int bits ){
     for (int i = bits - 1; i >= 0; i--) {
-        u_int32_t bit = (number >> i) & 1;
+        uint32_t bit = (number >> i) & 1;
         printf("%d", bit);
     }
 }
 
-void writeInstructionsToFile(const u_int16_t *instructions, int size, FILE* file ){
+void writeInstructionsToFile(const uint16_t *instructions, int size, FILE* file ){
     for(int i = 0; i < size; i++ ){
         for (int j = INSTRUCTION_SIZE - 1; j >= 0; j--) {
-            u_int16_t bit = (instructions[i] >> j) & 1;
+            uint16_t bit = (instructions[i] >> j) & 1;
             fprintf(file,"%d", bit);
         }
         fprintf(file, "\n");
     }
 }
 
-void writeVHDLArrayInitializerToFile(const u_int16_t *instructions, int size, FILE* file ){
+void writeVHDLArrayInitializerToFile(const uint16_t *instructions, int size, FILE* file ){
     for(int i = 0; i < size; i++ ){
         fprintf(file, "%d => \"", i * 2);
         for (int j = INSTRUCTION_SIZE - 1; j >= (INSTRUCTION_SIZE /2); j--) {
-            u_int16_t bit = (instructions[i] >> j) & 1;
+            uint16_t bit = (instructions[i] >> j) & 1;
             fprintf(file,"%d", bit);
         }
         fprintf(file, "\",\n");
         fprintf(file, "%d => \"", (i * 2) + 1);
         for (int j = (INSTRUCTION_SIZE /2) - 1; j >= 0; j--) {
-            u_int16_t bit = (instructions[i] >> j) & 1;
+            uint16_t bit = (instructions[i] >> j) & 1;
             fprintf(file,"%d", bit);
         }
         fprintf(file, "\",\n");
@@ -189,7 +190,7 @@ void writeVHDLArrayInitializerToFile(const u_int16_t *instructions, int size, FI
     }
     return (INSTRUCTION_ID){.opcode = 127, .func = 0};
 }
-u_int8_t getInstructionType(u_int8_t opcode){
+uint8_t getInstructionType(uint8_t opcode){
     if(opcode == 1 || opcode == 12 || opcode == 13){
         return 1;
     }
@@ -199,8 +200,8 @@ u_int8_t getInstructionType(u_int8_t opcode){
     return 0;
 }
 
-u_int8_t getRegisterNumber(char r[]){
-    u_int8_t num = 0;
+uint8_t getRegisterNumber(char r[]){
+    uint8_t num = 0;
     if(r[0] != '$'){
         char errorMessage[BUFFER_SIZE];
         sprintf(errorMessage, "Expected register, got %s", r);
@@ -215,7 +216,7 @@ int main(int argc, char** argv) {
     FILE *file;
     FILE *outFile;
     char *filename = argv[1];
-    char *outputFilename = argv[2];
+    char *outputFilename = argv[2]; // vhdl formatted
     char *originalInstructionsFilename = argv[3];
     char *instructionsOutputFilename = argv[4];
     char word[BUFFER_SIZE];
@@ -282,14 +283,14 @@ int main(int argc, char** argv) {
         }
 
     }
-    u_int16_t *instructions = malloc((currentAddress * 2 )* sizeof (u_int32_t));
+    uint16_t *instructions = malloc((currentAddress * 2 )* sizeof (uint32_t));
     int numInstructions = 0;
     rewind(file);
 
     while (fscanf(file, "%99s", word) == 1) {
         INSTRUCTION_ID id = getInstructionId(word);
-        u_int8_t code = id.opcode;
-        u_int8_t func = id.func;
+        uint8_t code = id.opcode;
+        uint8_t func = id.func;
         currentLineNumber++;
 
         if (code == 127) {
@@ -298,7 +299,7 @@ int main(int argc, char** argv) {
             continue;
         }
         current++;
-        u_int8_t type = getInstructionType(code);
+        uint8_t type = getInstructionType(code);
 
         if (type == 1) {
             instructions[current] = code << (INSTRUCTION_SIZE - OPCODE_SIZE);
@@ -308,7 +309,7 @@ int main(int argc, char** argv) {
             if (code != 13 && code != 12) {
                 if (fscanf(file, "%99s", dest) == 1) {
                     trimComma(dest);
-                    u_int8_t rNum = getRegisterNumber(dest);
+                    uint8_t rNum = getRegisterNumber(dest);
                     instructions[current] = instructions[current] + (rNum
                             << (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE - REGISTER_SIZE));
                 }
@@ -316,7 +317,7 @@ int main(int argc, char** argv) {
             if (code != 12 && code != 13) {
                 if (fscanf(file, "%99s", source1) == 1) {
                     trimComma(source1);
-                    u_int8_t sNum1 = getRegisterNumber(source1);
+                    uint8_t sNum1 = getRegisterNumber(source1);
                     instructions[current] = instructions[current] +
                                             (sNum1 << (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE));
                 }
@@ -324,7 +325,7 @@ int main(int argc, char** argv) {
             if (func != 1 && func != 2 && code != 12) {
                 if (fscanf(file, "%99s", source2) == 1) {
                     trimComma(source2);
-                    u_int8_t sNum2 = getRegisterNumber(source2);
+                    uint8_t sNum2 = getRegisterNumber(source2);
                     instructions[current] = instructions[current] + (sNum2
                             << (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE));
                 }
@@ -339,7 +340,7 @@ int main(int argc, char** argv) {
 
             if (fscanf(file, "%99s", dest) == 1) {
                 trimComma(dest);
-                u_int8_t rNum = getRegisterNumber(dest);
+                uint8_t rNum = getRegisterNumber(dest);
                 if (code == 5 || code == 6 || code == 7) {//branches
                     instructions[current] =
                             instructions[current] + (rNum << (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE));
@@ -354,7 +355,7 @@ int main(int argc, char** argv) {
                 if (source1[0] == '$') {
                     int hasImmediate = source1[strlen(source1) - 1] == ',';
                     trimComma(source1);
-                    u_int8_t rNum = getRegisterNumber(source1);
+                    uint8_t rNum = getRegisterNumber(source1);
                     if (code == 5 || code == 6 || code == 7) {//branches
                         instructions[current] =
                                 instructions[current] + (rNum << (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE));
@@ -368,7 +369,7 @@ int main(int argc, char** argv) {
                             int value = resolveImmediate(im);
                             if (errno == EINVAL) {
                                 //this is a label
-                                u_int32_t labelAddress = resolveLabel(im);
+                                uint32_t labelAddress = resolveLabel(im);
                                 int offset = (int) labelAddress - (current + BASE);
                                 value = offset;
                                 errno = 0;
@@ -381,7 +382,7 @@ int main(int argc, char** argv) {
                         char *ptr = source1;
                         ptr++;
                         ptr[strlen(ptr) - 1] = '\0';
-                        u_int8_t rNum = getRegisterNumber(ptr);
+                        uint8_t rNum = getRegisterNumber(ptr);
                         if (code == 5 || code == 6 || code == 7) {
                             instructions[current] = instructions[current] + (rNum
                                     << (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE));
@@ -404,7 +405,7 @@ int main(int argc, char** argv) {
                             i++;
                         }
                         if (i == strlen(source1)) {
-                            u_int32_t labelAddress = resolveLabel(source1);
+                            uint32_t labelAddress = resolveLabel(source1);
                             immediate = (int) labelAddress - (current + BASE);
                             instructions[current] += ((immediate & IMM_MASK)
                                     << (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE -
@@ -413,7 +414,7 @@ int main(int argc, char** argv) {
                             char *ptr = source1;
                             ptr += ++i;
                             ptr[strlen(ptr) - 1] = '\0';
-                            u_int8_t rNum = getRegisterNumber(ptr);
+                            uint8_t rNum = getRegisterNumber(ptr);
                             if (code == 5 || code == 6 || code == 7) { // branches and sw
                                 instructions[current] = instructions[current] + (rNum
                                         << (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE)) +
@@ -437,7 +438,7 @@ int main(int argc, char** argv) {
         } else if (type == 2) {
             char label[BUFFER_SIZE];
             int flag = 0;
-            u_int32_t jumpAddress;
+            uint32_t jumpAddress;
             if (fscanf(file, "%99s", label) == 1) {
                 for (int i = 0; i < labelIndex; i++) {
                     if (strcmp(labels[i].labelName, label) == 0) {
@@ -464,10 +465,10 @@ int main(int argc, char** argv) {
 //    }
 
 
-    u_int16_t *resolvedInstructions = malloc(5 * numInstructions * sizeof (u_int16_t));
+    uint16_t *resolvedInstructions = malloc(5 * numInstructions * sizeof (uint16_t));
     int currentResolvedInstruction = 0;
-    u_int8_t *activeRegisters = malloc(8 * sizeof(u_int8_t));
-    u_int8_t *newLineNumbers = malloc(numInstructions * sizeof (u_int8_t));
+    uint8_t *activeRegisters = malloc(8 * sizeof(uint8_t));
+    uint8_t *newLineNumbers = malloc(numInstructions * sizeof (uint8_t));
     for(int i = 0; i < 8; i++){
         activeRegisters[i] = 0;
     }
@@ -480,16 +481,16 @@ int main(int argc, char** argv) {
             activeRegisters[j] = activeRegisters[j] == 0 ? 0 : activeRegisters[j] - 1;
         }
 
-        u_int16_t instruction = instructions[i];
+        uint16_t instruction = instructions[i];
 
-        u_int16_t opcode = instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE);
-        u_int16_t type = getInstructionType(opcode);
+        uint16_t opcode = instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE);
+        uint16_t type = getInstructionType(opcode);
 
 
         if(type == 1){
-            u_int8_t source1 = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE)) & mask;
-            u_int8_t source2 = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE)) & mask;
-            u_int8_t dest = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE - REGISTER_SIZE)) & mask;
+            uint8_t source1 = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE)) & mask;
+            uint8_t source2 = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE)) & mask;
+            uint8_t dest = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE - REGISTER_SIZE)) & mask;
 
             if((activeRegisters[dest] || activeRegisters[source1] || activeRegisters[source2]) && USE_OTHER_NOPS){ // not available
                 int waitCycles = max(activeRegisters[dest], activeRegisters[source1], activeRegisters[source2]);
@@ -538,8 +539,8 @@ int main(int argc, char** argv) {
 
         }
         else if(type == 0) {
-            u_int8_t source1 = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE)) & mask;
-            u_int8_t dest = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE)) & mask;
+            uint8_t source1 = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE)) & mask;
+            uint8_t dest = (instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE - REGISTER_SIZE - REGISTER_SIZE)) & mask;
 
             if (((activeRegisters[dest] || activeRegisters[source1])) && USE_OTHER_NOPS) { // not available
                 int waitCycles = activeRegisters[dest] > activeRegisters[source1] ? activeRegisters[dest]
@@ -606,9 +607,9 @@ int main(int argc, char** argv) {
         currentResolvedInstruction++;
     }
     for(int i = 0; i < currentResolvedInstruction; i++){
-        u_int16_t* instruction = &resolvedInstructions[i];
-        u_int16_t opcode = *instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE);
-        u_int16_t type = getInstructionType(opcode);
+        uint16_t* instruction = &resolvedInstructions[i];
+        uint16_t opcode = *instruction >> (INSTRUCTION_SIZE - OPCODE_SIZE);
+        uint16_t type = getInstructionType(opcode);
         if(opcode == 5 || opcode == 6 || opcode == 7){ // branch
             int oldLineNumber = -1;
             for(int j = 0; j < numInstructions; j++){
